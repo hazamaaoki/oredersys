@@ -1,0 +1,867 @@
+Option Compare Database
+
+Private Sub Check145_AfterUpdate()
+Dim 全选 As String
+Dim 取消全选 As String
+
+取消全选 = "UPDATE 询价表 SET 询价表.选择 = 0 WHERE (((询价表.选择)=True) AND ((Exists (SELECT 报价表.询价ID From 报价表 where 询价表.编号=报价表.询价ID))=False));"
+全选 = "UPDATE 询价表 SET 询价表.选择 = 1 WHERE (((询价表.选择)=False) AND ((Exists (SELECT 报价表.询价ID From 报价表 where 询价表.编号=报价表.询价ID))=False));"
+
+If Forms!Add.Check145 = -1 Then
+DoCmd.RunSQL 全选
+Refresh
+Else
+    If Forms!Add.Check145 = 0 Then
+    DoCmd.RunSQL 取消全选
+    Refresh
+    End If
+End If
+End Sub
+
+Private Sub Command101_Click()
+
+
+                            Dim dbsCurrent As Database
+                            Dim qryTest As QueryDef
+                            Set dbsCurrent = CurrentDb
+                            Set qryTest = dbsCurrent.QueryDefs("催报价")
+Dim rst As ADODB.Recordset
+Set rst = New ADODB.Recordset
+rst.ActiveConnection = CurrentProject.Connection
+rst.CursorType = adOpenStatic
+rst.Open "select * from 报价中供应商分组"
+
+
+
+Do Until rst.EOF
+'MsgBox (DLookup("[邮箱]", "联系表", "[供应商简称] = '" & rst("供应商简称") & "'"))
+qryTest.sql = "SELECT 报价中项目.编号, 报价中项目.询价时间, 报价中项目.距询价起, 报价中项目.[物品名称(中文)], 报价中项目.[品牌/厂家名], 报价中项目.规格型号图纸, 报价中项目.数量, 报价中项目.单位, 报价中项目.供应商名称, 报价中项目.请购部门担当, 报价中项目.所属部门科室, 报价中项目.备注 FROM 报价中项目" & " " & "WHERE 报价中项目.供应商名称=" & Chr(34) & rst("供应商名称") & Chr(34) & " " & "AND ((报价中项目.距询价起)>6)"
+If IsNull(DLookup("[供应商名称]", "催报价", "[供应商名称] = '" & rst("供应商名称") & "'")) Then
+Else
+MsgBox ("崔报价" & rst("供应商名称"))
+On Error Resume Next
+DoCmd.SendObject acQuery, "催报价", acFormatXLS, DLookup("[邮箱]", "联系表", "[供应商简称] = '" & rst("供应商名称") & "'"), "", "", "催报价", "您好！" & Chr(10) & "请确认询价推进状况。" & Chr(10) & "若能够报价，请给出预计能够报价的日期。" & Chr(10) & "若无法报价请及时提出。" & Chr(10) & "谢谢！", True, ""
+
+End If
+
+rst.MoveNext
+Loop
+
+
+rst.Close
+Set rst = Nothing
+
+End Sub
+
+Private Sub Command125_KeyDown(KeyCode As Integer, Shift As Integer)
+MsgBox ("2")
+End Sub
+
+Private Sub Command144_Click()
+mOpen = Shell("Explorer.exe D:\询价模板v0.01.xsn", vbNormalFocus)
+End Sub
+
+Private Sub Command153_Click()
+mOpen = Shell("Explorer.exe D:\工作中心\支出申请单管理系统.xls", vbNormalFocus)
+End Sub
+
+Private Sub Command157_Click()
+ Dim fs, f, f1, fc
+    Set fs = CreateObject("scripting.filesystemobject")
+    Set f = fs.getfolder("d:\订单\")
+    Set fc = f.Files
+  
+    For Each f1 In fc
+    Call test(f1)
+    Next
+Set fs = Nothing
+Set f = Nothing
+Set f1 = Nothing
+Set fc = Nothing
+MsgBox "完成"
+End Sub
+
+Private Sub Command158_Click()
+MsgBox 1
+ Dim fsa, fa, f1a, fca
+    Set fsa = CreateObject("scripting.filesystemobject")
+    Set fa = fsa.getfolder("d:\订单\")
+    Set fca = fa.Files
+  
+
+
+'MsgBox ("前回运行时出现【订单号不是最新的】提示，经过判断是未运行追加查询【追加订单表未发单】。若希望使用顺畅，请判断一下【追加订单表未发单】应该在程序的那个地方加入。如果不愿意修改程序，请先运行【追加订单表未发单】")
+'DoCmd.OpenQuery "追加订单表未发单"
+    Dim Fso, Fld, Fil, fn
+    Dim Arr() As String, k As Integer '注意此数组的上边界是0，但是放数据的时候是从1开始的
+    Set Fso = CreateObject("Scripting.FileSystemObject")
+    Set Fld = Fso.getfolder("D:\订单")
+    Set Fil = Fld.Files
+    ReDim Arr(Fil.Count)
+    'MsgBox (Fil.Count)
+    k = 0
+    For Each fn In Fil
+        k = k + 1
+        Arr(k) = fn.Name
+    Next
+    
+    For i = 1 To UBound(Arr()) '检查订单位数是否有误
+        If Right(Arr(i), 3) <> "jpg" Then
+            MsgBox ("订单号位数有误或并非订单号，错误的文件名为：" & Arr(i))
+            Exit Sub
+        Else
+        End If
+    Next
+    
+    DoCmd.RunSQL ("DELETE 临时订单表.* FROM 临时订单表;") '清除临时订单表中的数据
+    For i = 1 To Fil.Count
+    'MsgBox (Chr(34) & "INSERT INTO 临时订单表 VALUES (" & Chr(34) & Left(Arr(i), Len(Arr(i)) - 4) & Chr(34) & ");" & Chr(34))'显示出SQL-TEXT
+    If Mid(Arr(i), 16, 1) <> "-" Then
+    DoCmd.RunSQL ("INSERT INTO 临时订单表 VALUES (" & Chr(34) & Left(Arr(i), Len(Arr(i)) - 4) & Chr(34) & ");")
+    End If
+    'MsgBox (Left(Arr(i), Len(Arr(i)) - 4)) '计算出文件名（无后缀名）
+    Next
+    Set Fil = Nothing
+    Set Fld = Nothing
+    Set Fso = Nothing
+
+    
+    
+    
+    Dim rst As ADODB.Recordset '打开临时订单表提取供应商数据
+    Set rst = New ADODB.Recordset
+    rst.ActiveConnection = CurrentProject.Connection
+    rst.CursorType = adOpenStatic
+    rst.Open "select 供应商 from 临时订单表供应商分组"
+    
+    Dim qryTest As QueryDef '修改SQLTEXT
+    Set dbsCurrent = CurrentDb
+    Set qryTest = dbsCurrent.QueryDefs("订单请确认回传")
+    
+    
+    
+        
+If (rst.EOF And rst.BOF) Then
+    MsgBox ("记录集为空")
+    Exit Sub
+Else
+    rst.MoveFirst
+End If
+
+    rst.MoveFirst
+Do Until rst.EOF '判断列表中是否有空元素
+    If IsNull(rst("供应商")) Then
+        MsgBox ("订单号不是最新的，订单文件夹里面的某个订单号不在【订单总表】中，请更新【订单总表】的数据" & Chr(10) & "或者文件夹中存在已经发过的订单" & Chr(10) & "请确认将要打开的界面中【供应商】列的空白部分")
+        DoCmd.OpenQuery "临时订单表供应商"
+        Exit Sub
+    Else
+    End If
+    rst.MoveNext
+Loop
+
+rst.MoveFirst
+
+
+Do Until rst.EOF
+    SQLTEXT = "SELECT 临时订单表供应商.供应商, 临时订单表供应商.订单号 FROM 临时订单表供应商 WHERE (((临时订单表供应商.供应商)=" & Chr(34) & rst("供应商") & Chr(34) & "));"
+    qryTest.sql = SQLTEXT
+    DoCmd.TransferSpreadsheet acExport, 8, "订单请确认回传", "D:/订单信息.xls", True, ""
+    'MsgBox ("生成邮件" & "供应商为" & rst("供应商") & Chr(10) & "邮箱为:" & DLookup("[邮箱]", "联系表", "[供应商简称] = '" & rst("供应商") & "'"))
+                Dim OutApp As Outlook.Application '//定义outlook的对象变量
+                Dim oItem As Outlook.MailItem    '//定义outlook邮件的对象变量
+                Set OutApp = New Outlook.Application  '//创建outlook对象
+                Set oItem = OutApp.CreateItem(olMailItem)  '//创建一封新的邮件
+                With oItem
+                .To = DLookup("[邮箱]", "联系表", "[供应商简称] = '" & rst("供应商") & "'")   '//邮件收件人
+                .Subject = "订单请确认回传" & "-" & rst("供应商")  '//邮件的主题
+                .BodyFormat = olFormatHTML  '//设置邮件格式 是否html 格式的
+                
+
+                
+                
+                            Dim rsta As ADODB.Recordset '打开临时订单表提取供应商数据
+                            Set rsta = New ADODB.Recordset
+                            rsta.ActiveConnection = CurrentProject.Connection
+                            rsta.CursorType = adOpenStatic
+                            rsta.Open "select 订单号 from 订单请确认回传"
+                            rsta.MoveFirst
+                            
+                                Do Until rsta.EOF
+                                'MsgBox ("存放附件" & rst("供应商") & " " & rsta("订单号"))
+                                
+                                
+                                    For Each f1a In fca
+
+                                        If rsta("订单号") = Mid(f1a, InStr(1, f1a, "DD"), 15) Then
+                                            f1a1 = Replace(f1a, Chr(34), "")
+                                            f1a1 = Replace(f1a1, Chr(10), "")
+                                            f1a1 = Replace(f1a1, Chr(9), "")
+                                            f1a1 = Replace(f1a1, Chr(13), "")
+     
+                                    
+                                            '.Attachments.Add "D:\订单\" & rsta("订单号") & ".jpg"  '//添加附件
+                                            .Attachments.Add f1a1  '//添加附件
+                                            Name f1a1 As Replace(f1a1, "订单", "订单已发")
+                                        End If
+                                    Next
+                
+                
+                
+                                DoCmd.RunSQL ("UPDATE 订单表 SET 订单表.发出日期 = Date() WHERE (((订单表.发出日期) Is Null) AND ((订单表.订单号)=" & Chr(34) & rsta("订单号") & Chr(34) & "));")
+                                'Name "D:\订单\" & rsta("订单号") & ".jpg" As "D:\订单已发\" & rsta("订单号") & ".jpg"
+                               
+                                'MsgBox ("UPDATE 订单表 SET 订单表.发出日期 = Date() WHERE (((订单表.发出日期) Is Null) AND ((订单表.订单号)=" & Chr(34) & rsta("订单号") & Chr(34) & "));")
+                                rsta.MoveNext
+                                Loop
+    
+                .Body = "您好！订单请确认回传。"    '//邮主体内容
+                .Display    '//新建邮件窗口显示
+                .Send   '//邮件发送
+                End With
+    
+    
+    rst.MoveNext
+Loop
+Set rst = Nothing
+Set fsa = Nothing
+Set fa = Nothing
+Set f1a = Nothing
+Set fca = Nothing
+
+    
+    
+End Sub
+
+Private Sub Command163_Click()
+
+mOpen = Shell("Explorer.exe D:\工作中心\纳期管理.accdb", vbNormalFocus)
+
+End Sub
+
+'xunjia bottan
+Private Sub Command39_Click()
+DoCmd.OpenQuery "询价信息补全"
+'判断请购人员的信息是否完成 内线和邮箱 star
+Dim cn As ADODB.Connection
+Dim rs As ADODB.Recordset
+Dim sql As String
+
+Set cn = New ADODB.Connection
+
+cn.Open "provider=microsoft.jet.oledb.4.0;data source=D:\数据源.mdb"
+'sql = "SELECT Count([人员部门表需要不全部分]![请购部门担当]) AS 数量 FROM 人员部门表需要不全部分;"
+
+sql = "SELECT 询价表.编号, 询价表.[物品名称(中文)], 询价表.[品牌/厂家名], 询价表.规格型号图纸, 询价表.数量, 询价表.单位, 询价表.采购担当, 询价表.请购部门担当, 询价表.分机, 询价表.[now], 询价表.是否已经报价, 询价表.报价时间, 询价表.邮箱 From 询价表 WHERE (((询价表.邮箱) Is Null) AND ((询价表.选择)=True)) OR (((询价表.分机) Is Null));"
+
+Set rs = New ADODB.Recordset
+rs.CursorLocation = 3
+rs.Open sql, cn, adOpenDynamic, adLockPessimistic
+'MsgBox rs.MoveLast
+If Not (rs.EOF) Then
+rs.MoveLast
+End If
+If rs.RecordCount > 0 Then
+DoCmd.OpenQuery "人员部门表需要补全部分"
+MsgBox ("请购人员“内线”或“邮箱地址”或“所属部门”不全，请补全")
+Exit Sub
+End If
+Set cn = Nothing
+Set rs = Nothing
+
+'判断请购人员的信息是否完成 内线和邮箱 end
+
+
+                        If IsNull(供应商名) Then
+                            MsgBox ("供应商名未填写")
+                        Else
+                                If Not IsNull(DLookup("[供应商简称]", "联系表", "[供应商简称] = '" & Forms!Add!供应商名 & "'")) Then
+                                    Dim dbsCurrent As Database
+                                    Dim qryTest As QueryDef
+                                    Dim varX As Variant
+                                    Dim P As String
+    
+                                    Set dbsCurrent = CurrentDb
+                                    Set qryTest = dbsCurrent.QueryDefs("询价信息")
+
+                                    Dim insertintoselect As String
+                                    
+                                    P = "UPDATE 询价表, 报价表 SET 报价表.供应商名称 = Forms!add!供应商名 WHERE (((报价表.供应商名称) Is Null) AND ((询价表.选择)=True));"
+                                    P2 = "UPDATE 询价表, 报价表 SET 报价表.供应商名称 = Forms!add!供应商2 WHERE (((报价表.供应商名称) Is Null) AND ((询价表.选择)=True));"
+                                    P3 = "UPDATE 询价表, 报价表 SET 报价表.供应商名称 = Forms!add!供应商3 WHERE (((报价表.供应商名称) Is Null) AND ((询价表.选择)=True));"
+                                    insertintoselec = "INSERT INTO 报价表 ( 询价ID ) SELECT [编号] FROM 询价表 WHERE 询价表.选择=TRUE;"
+                                    varX1 = DLookup("[邮箱]", "联系表", "[供应商简称] = '" & Forms!Add!供应商名 & "'")
+                                    varX2 = DLookup("[邮箱]", "联系表", "[供应商简称] = '" & Forms!Add!供应商2 & "'")
+                                    varX3 = DLookup("[邮箱]", "联系表", "[供应商简称] = '" & Forms!Add!供应商3 & "'")
+                                      If Not IsNull(varX2) Then
+                                      varX2 = ";" & DLookup("[邮箱]", "联系表", "[供应商简称] = '" & Forms!Add!供应商2 & "'")
+                                      varset2 = 1
+                                      Else
+                                      varX2 = ""
+                                      varset2 = 0
+                                      End If
+                                      
+                                       If Not IsNull(varX3) Then
+                                      varX3 = ";" & DLookup("[邮箱]", "联系表", "[供应商简称] = '" & Forms!Add!供应商3 & "'")
+                                      varset3 = 1
+                                      Else
+                                      varX3 = ""
+                                      varset3 = 0
+                                      End If
+                                      
+                                      
+                                      
+                                    varX = varX1 + varX2 + varX3
+
+
+
+                                    
+                                    'DoCmd.SendObject acQuery, "询价信息", acFormatXLS, "", "", varX, "询价", "您好！请帮忙报价。谢谢！" & Chr(10) & sine, True, ""
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+
+'首先，确保已经安装了OutLook,然后在引用中引用Microsoft OutLook对象，在输入以下代码就可实现创建一个新邮件，并添加一个附件到邮件中，然后发送邮件的功能。
+'通过引用OutLook.Application对象，Access可以循环OutLook对象里面的所有内容，例如可以读取OutLook里的所有邮件、联系人、约会、日记等信息，还可修改OutLook内置的"规则精灵"
+'的内容。
+
+   DoCmd.RunMacro "导出"
+   Dim myOlApp As Object
+   Dim myNamespace As Object
+ 
+   Set myOlApp = CreateObject("OutLook.Application") '创建OutLook应用程序对象
+   Set myNamespace = myOlApp.getNamespace("MAPI") '获取MAPI命名空间
+   Set myFolder = myNamespace.getDefaultFolder(6) '获取默认的文件夹
+   Set myitem = myOlApp.CreateItem(0) '创建新邮件
+'VAXXX1 = DLookup("[邮箱]", "联系表", "[供应商简称] = '自己'")
+sine = Chr(10) & Chr(10) & Chr(10) & Chr(10) & Chr(10) & Chr(10) & "******************************************************" & Chr(10) & "HONDA" & Chr(10) & "本田汽车零部件制造有限公司 " & Chr(10) & "采购管理科   一般采购系" & Chr(10) & DLookup("[姓名]", "名片", "[ID] = 1") & Chr(10) & "TEL:0757-81198888(" & DLookup("[电话]", "名片", "[ID] = 1") & ") " & Chr(10) & "FAX：0757-81198823" & Chr(10) & "E-mial：" & DLookup("[邮箱]", "名片", "[ID] = 1") & Chr(10) & "ADD:中国广东省佛山市南海区南海科技园本田路1号" & Chr(10) & "******************************************************"
+   myitem.Display
+  ' Set myRecipient = myitem.Recipients.Add(VAXXX1) '为邮件添加收件人
+  myitem.To = varX
+   myitem.CC = ""
+   myitem.BCC = ""
+'   myRecipient.Type = 1
+   myitem.Subject = "询价" '设置邮件主题
+   myitem.Body = "您好！请帮忙报价。有任何信息不全的请及时联系。谢谢！。" & sine
+   'MsgBox "ok"
+   myitem.Attachments.Add ("d:\询价信息.xls") '添加邮件附件，注意确保硬盘下有这个文件
+   myitem.Save
+   'myitem.Send
+
+
+
+                                    
+' SendKeys "^~"
+                                    
+                                    
+                                    
+    
+                        
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    
+                                    DoCmd.RunSQL (insertintoselec)
+                                    DoCmd.RunSQL (P)
+                                    
+                                    
+                                    
+                                    If varset2 = 1 Then
+                                    DoCmd.RunSQL (insertintoselec)
+                                    DoCmd.RunSQL (P2)
+                                    Else
+                                    End If
+                                    
+                                     If varset3 = 1 Then
+                                    DoCmd.RunSQL (insertintoselec)
+                                    DoCmd.RunSQL (P3)
+                                    Else
+                                    End If
+                                    
+                                    
+                                    qryTest.sql = "SELECT 询价表.编号, 询价表.[物品名称(中文)], 询价表.[品牌/厂家名], 询价表.规格型号图纸, 询价表.数量, 询价表.单位, 询价表.采购担当, 询价表.请购部门担当, 询价表.分机, 询价表.[now], 询价表.是否已经报价, 询价表.报价时间 FROM 询价表 WHERE 询价表.选择=True;"
+                                    'Forms!Add.供应商名 = Null
+                                    'Forms!Add.供应商2 = Null
+                                    'Forms!Add.供应商3 = Null
+                                    MsgBox ("已询价")
+                                    DoCmd.RunSQL ("UPDATE 询价表 SET 询价表.选择 = False WHERE (([询价表]![选择]=True));")
+                                    Refresh
+                                Else
+                                    Forms!Add.供应商名 = Null
+                                    Forms!Add.供应商2 = Null
+                                    Forms!Add.供应商3 = Null
+                                    MsgBox ("列表中无该供应商")
+                                End If
+                        End If
+
+   
+End Sub
+'test bottan
+Private Sub Command42_Click()
+Forms!Add.供应商名 = ""
+    'bislist = IsNull(DLookup("[供应商名称]", "报价中项目", "[供应商名称] = '" & Forms!Add!供应商名 & "'"))
+    MsgBox ("请勿点击此按钮 此按钮无任何功能")
+    Forms!Add.供应商名 = ""
+    MsgBox ("请勿点击此按钮 此按钮无任何功能")
+    
+End Sub
+'baojia bottan
+Private Sub Command7_Click()
+
+If IsNull(供应商2) And IsNull(供应商3) Then
+Else
+MsgBox ("报价请勿使用“供应商2”及“供应商3”")
+Exit Sub
+End If
+
+  If IsNull(供应商名) Then
+    MsgBox ("供应商名未填写")
+  Else
+            If Not IsNull(DLookup("[供应商名称]", "报价中项目", "[供应商名称] = '" & Forms!Add!供应商名 & "'")) Then
+                            Dim Q As String
+                            Dim varX1 As Variant
+                            Dim dbsCurrent As Database
+                            Dim qryTest As QueryDef
+                            Set dbsCurrent = CurrentDb
+                            Set qryTest = dbsCurrent.QueryDefs("询价信息")
+varX1 = DLookup("[邮箱]", "询价表", "询价表.选择 = True")
+If IsNull(varX1) Then
+MsgBox ("未选中需要报价的项目")
+Exit Sub
+
+Else
+End If
+
+                            'varX1 = DLookup("[邮箱]", "询价表", "[编号] =  Forms!Add!min")
+                            'varX1 = DLookup("[请购部门担当]", "询价表", "[请购部门担当] = '" & Forms!Add!供应商名 & "'")
+                            Q = "UPDATE 询价表 INNER JOIN 报价表 ON 询价表.编号 = 报价表.询价ID SET 报价表.报价给现场时间 = FORMS!add.时间 WHERE (((报价表.报价给现场时间) Is Null) AND ((询价表.选择)=True) AND ((报价表.供应商名称)=[Forms]![add].[供应商名]));"
+                            
+                            
+                            
+                            
+                            
+sine = Chr(10) & Chr(10) & Chr(10) & Chr(10) & Chr(10) & Chr(10) & "******************************************************" & Chr(10) & "HONDA" & Chr(10) & "本田汽车零部件制造有限公司 " & Chr(10) & "采购管理科   一般采购系" & Chr(10) & DLookup("[姓名]", "名片", "[ID] = 1") & Chr(10) & "TEL:0757-81198888(" & DLookup("[电话]", "名片", "[ID] = 1") & ") " & Chr(10) & "FAX：0757-81198823" & Chr(10) & "E-mial：" & DLookup("[邮箱]", "名片", "[ID] = 1") & Chr(10) & "ADD:中国广东省佛山市南海区南海科技园本田路1号" & Chr(10) & "******************************************************"
+                            
+                             DoCmd.RunMacro "导出"
+   Dim myOlApp As Object
+   Dim myNamespace As Object
+ 
+   Set myOlApp = CreateObject("OutLook.Application") '创建OutLook应用程序对象
+   Set myNamespace = myOlApp.getNamespace("MAPI") '获取MAPI命名空间
+   Set myFolder = myNamespace.getDefaultFolder(6) '获取默认的文件夹
+   Set myitem = myOlApp.CreateItem(0) '创建新邮件
+ 
+   myitem.Display
+   Set myRecipient = myitem.Recipients.Add(varX1) '为邮件添加收件人
+   myitem.CC = ""
+   myitem.BCC = ""
+   myRecipient.Type = 1
+   myitem.Subject = "报价请参考" '设置邮件主题
+   myitem.Body = "您好！报价请参考。" & sine
+   'MsgBox "ok"
+   myitem.Attachments.Add ("d:\询价信息.xls") '添加邮件附件，注意确保硬盘下有这个文件
+   myitem.Save
+   'myitem.Send
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            'DoCmd.SendObject acQuery, "询价信息", acFormatXLS, varX1, "", "", "报价", "您好！报价请参考。谢谢！", True, ""
+                            DoCmd.RunSQL Q
+                            qryTest.sql = "SELECT 询价表.编号, 询价表.[物品名称(中文)], 询价表.[品牌/厂家名], 询价表.规格型号图纸, 询价表.数量, 询价表.单位, 询价表.采购担当, 询价表.请购部门担当, 询价表.分机, 询价表.[now], 询价表.是否已经报价, 询价表.报价时间 FROM 询价表 WHERE 询价表.选择=True;"
+                            'qryTest.SQL = "SELECT 询价表.编号, 询价表.[物品名称(中文)], 询价表.[品牌/厂家名], 询价表.规格型号图纸, 询价表.数量, 询价表.单位, 询价表.采购担当, 询价表.请购部门担当, 询价表.分机, 询价表.[now], 询价表.是否已经报价, 询价表.报价时间 FROM 询价表 WHERE (询价表.编号 Between FORMS!add.MIN And FORMS!add.MAX) ;"
+                            Forms!Add.供应商名 = Null
+                            
+                            MsgBox ("已完成报价")
+                            DoCmd.RunSQL ("UPDATE 询价表 SET 询价表.选择 = False WHERE (([询价表]![选择]=True));")
+                            Refresh
+             Else
+                            Forms!Add.供应商名 = Null
+                            MsgBox ("该供应商没有正在报价的项目")
+                            
+             End If
+  End If
+End Sub
+
+Private Sub Command74_Click()
+DoCmd.OpenTable "联系表"
+End Sub
+
+Private Sub Command87_Click()
+DoCmd.RunSQL "UPDATE 询价表 SET 询价表.选择 = True WHERE ((([询价表]![编号]) Between [Forms]![add]![min] And [Forms]![add]![max]));"
+Refresh
+DoCmd.RunMacro "导出"
+End Sub
+
+Private Sub Command88_Click()
+DoCmd.RunSQL "UPDATE 询价表 SET 询价表.选择 = False WHERE ((([询价表]![编号]) Between [Forms]![add]![min] And [Forms]![add]![max]));"
+Refresh
+End Sub
+
+Private Sub Command89_Click()
+DoCmd.OpenQuery "询价信息补全"
+Refresh
+End Sub
+
+
+
+Private Sub min_AfterUpdate()
+Refresh
+End Sub
+Private Sub max_AfterUpdate()
+Refresh
+End Sub
+Private Sub 采购担当选择_AfterUpdate()
+Refresh
+End Sub
+Private Sub Command70_Click()
+On Error GoTo Err_Command70_Click
+
+    Dim stDocName As String
+
+    stDocName = ChrW(25253) & ChrW(20215) & ChrW(20013) & ChrW(-26503) & ChrW(30446)
+    DoCmd.OpenQuery stDocName, acNormal, acEdit
+
+Exit_Command70_Click:
+    Exit Sub
+
+Err_Command70_Click:
+    MsgBox Err.Description
+    Resume Exit_Command70_Click
+    
+End Sub
+Private Sub Command71_Click()
+On Error GoTo Err_Command71_Click
+
+    Dim stDocName As String
+
+    stDocName = ChrW(26410) & ChrW(-29726) & ChrW(20215)
+    'DoCmd.OpenQuery stDocName, acNormal, acEdit
+DoCmd.OpenTable ("询价表")
+Exit_Command71_Click:
+    Exit Sub
+
+Err_Command71_Click:
+    MsgBox Err.Description
+    Resume Exit_Command71_Click
+    
+End Sub
+Private Sub Command72_Click()
+On Error GoTo Err_Command72_Click
+
+    Dim stDocName As String
+
+    stDocName = ChrW(26410) & ChrW(-29726) & ChrW(20215)
+    DoCmd.OpenQuery stDocName, acNormal, acEdit
+
+Exit_Command72_Click:
+    Exit Sub
+
+Err_Command72_Click:
+    MsgBox Err.Description
+    Resume Exit_Command72_Click
+    
+End Sub
+Private Sub Command73_Click()
+    Dim dbsCurrent As Database
+    Dim qryTest As QueryDef
+    Set dbsCurrent = CurrentDb
+    Set qryTest = dbsCurrent.QueryDefs("超过14天未报价")
+    'DoCmd.SendObject acQuery, "超过14天未报价", acFormatXLS, "yijie_liu@cham-honda.com.cn", "", "", "统计超过14天未报价", "14天未报价", False, ""
+    qryTest.sql = "SELECT 报价中项目.* FROM 报价中项目 WHERE ((报价中项目!距询价起>=14));"
+
+    
+End Sub
+Private Sub Command75_Click()
+On Error GoTo Err_Command75_Click
+
+    Dim stDocName As String
+
+    stDocName = ChrW(25253) & ChrW(20215) & ChrW(-29776) & ChrW(24405) & ChrW(26597) & ChrW(-29726)
+    DoCmd.OpenQuery stDocName, acNormal, acEdit
+
+Exit_Command75_Click:
+    Exit Sub
+
+Err_Command75_Click:
+    MsgBox Err.Description
+    Resume Exit_Command75_Click
+    
+End Sub
+
+
+Private Sub Text113_AfterUpdate()
+Forms!Add.供应商名 = DLookup("[供应商简称]", "联系表", "[ID] = Forms!Add.Text113")
+End Sub
+Private Sub Text115_AfterUpdate()
+Forms!Add.供应商2 = DLookup("[供应商简称]", "联系表", "[ID] = Forms!Add.Text115")
+End Sub
+Private Sub Text117_AfterUpdate()
+Forms!Add.供应商3 = DLookup("[供应商简称]", "联系表", "[ID] = Forms!Add.Text117")
+End Sub
+Private Sub 供应商名_AfterUpdate()
+Forms!Add.Text113 = DLookup("[ID]", "联系表", "[供应商简称] = Forms!Add.供应商名")
+End Sub
+Private Sub 供应商2_AfterUpdate()
+Forms!Add.Text115 = DLookup("[ID]", "联系表", "[供应商简称] = Forms!Add.供应商2")
+End Sub
+Private Sub 供应商3_AfterUpdate()
+Forms!Add.Text117 = DLookup("[ID]", "联系表", "[供应商简称] = Forms!Add.供应商3")
+End Sub
+
+Private Sub Command124_Click()
+DoCmd.OpenTable "名片"
+
+End Sub
+Private Sub Command125_Click()
+If IsNull(供应商2) And IsNull(供应商3) Then
+Else
+MsgBox ("请勿使用“供应商2”及“供应商3”")
+Exit Sub
+End If
+
+  If IsNull(供应商名) Then
+    MsgBox ("供应商名未填写")
+  Else
+            If Not IsNull(DLookup("[供应商名称]", "报价中项目", "[供应商名称] = '" & Forms!Add!供应商名 & "'")) Then
+                            Dim Q As String
+                            Dim varX1 As Variant
+                            Dim dbsCurrent As Database
+                            Dim qryTest As QueryDef
+                            Set dbsCurrent = CurrentDb
+                            Set qryTest = dbsCurrent.QueryDefs("询价信息")
+varX1 = DLookup("[邮箱]", "询价表", "询价表.选择 = True")
+If IsNull(varX1) Then
+MsgBox ("未选中需要处理的项目")
+Exit Sub
+
+Else
+End If
+
+                            'varX1 = DLookup("[邮箱]", "询价表", "[编号] =  Forms!Add!min")
+                            'varX1 = DLookup("[请购部门担当]", "询价表", "[请购部门担当] = '" & Forms!Add!供应商名 & "'")
+                            Q = "UPDATE 询价表 INNER JOIN 报价表 ON 询价表.编号 = 报价表.询价ID SET 报价表.报价给现场时间 = #1900-1-1# , 报价表.无法报价日期=FORMS!add.时间 WHERE (((报价表.报价给现场时间) Is Null) AND ((询价表.选择)=True) AND ((报价表.供应商名称)=[Forms]![add].[供应商名]));"
+                            
+                            
+                            
+                            
+                            
+sine = Chr(10) & Chr(10) & Chr(10) & Chr(10) & Chr(10) & Chr(10) & "******************************************************" & Chr(10) & "HONDA" & Chr(10) & "本田汽车零部件制造有限公司 " & Chr(10) & "采购管理科   一般采购系" & Chr(10) & DLookup("[姓名]", "名片", "[ID] = 1") & Chr(10) & "TEL:0757-81198888(" & DLookup("[电话]", "名片", "[ID] = 1") & ") " & Chr(10) & "FAX：0757-81198823" & Chr(10) & "E-mial：" & DLookup("[邮箱]", "名片", "[ID] = 1") & Chr(10) & "ADD:中国广东省佛山市南海区南海科技园本田路1号" & Chr(10) & "******************************************************"
+                            
+                             DoCmd.RunMacro "导出"
+   Dim myOlApp As Object
+   Dim myNamespace As Object
+ 
+   Set myOlApp = CreateObject("OutLook.Application") '创建OutLook应用程序对象
+   Set myNamespace = myOlApp.getNamespace("MAPI") '获取MAPI命名空间
+   Set myFolder = myNamespace.getDefaultFolder(6) '获取默认的文件夹
+   Set myitem = myOlApp.CreateItem(0) '创建新邮件
+ 
+   myitem.Display
+   Set myRecipient = myitem.Recipients.Add(varX1) '为邮件添加收件人
+   myitem.CC = ""
+   myitem.BCC = ""
+   myRecipient.Type = 1
+   myitem.Subject = "无法报价项目" '设置邮件主题
+   myitem.Body = "您好！此项目无法报价。" & sine
+   'MsgBox "ok"
+   myitem.Attachments.Add ("d:\询价信息.xls") '添加邮件附件，注意确保硬盘下有这个文件
+   myitem.Save
+   'myitem.Send
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            'DoCmd.SendObject acQuery, "询价信息", acFormatXLS, varX1, "", "", "报价", "您好！报价请参考。谢谢！", True, ""
+                            DoCmd.RunSQL Q
+                            qryTest.sql = "SELECT 询价表.编号, 询价表.[物品名称(中文)], 询价表.[品牌/厂家名], 询价表.规格型号图纸, 询价表.数量, 询价表.单位, 询价表.采购担当, 询价表.请购部门担当, 询价表.分机, 询价表.[now], 询价表.是否已经报价, 询价表.报价时间 FROM 询价表 WHERE 询价表.选择=True;"
+                            'qryTest.SQL = "SELECT 询价表.编号, 询价表.[物品名称(中文)], 询价表.[品牌/厂家名], 询价表.规格型号图纸, 询价表.数量, 询价表.单位, 询价表.采购担当, 询价表.请购部门担当, 询价表.分机, 询价表.[now], 询价表.是否已经报价, 询价表.报价时间 FROM 询价表 WHERE (询价表.编号 Between FORMS!add.MIN And FORMS!add.MAX) ;"
+                            Forms!Add.供应商名 = Null
+                            
+                            MsgBox ("已处理无法报价的项目")
+                            DoCmd.RunSQL ("UPDATE 询价表 SET 询价表.选择 = False WHERE (([询价表]![选择]=True));")
+                            Refresh
+             Else
+                            Forms!Add.供应商名 = Null
+                            MsgBox ("该供应商没有正在报价的项目")
+                            
+             End If
+  End If
+End Sub
+Private Sub Command139_Click()
+On Error GoTo Err_Command139_Click
+
+    Dim stDocName As String
+
+    stDocName = ChrW(-29217) & ChrW(26032) & ChrW(-29726) & ChrW(20215) & ChrW(-30616) & ChrW(32) & ChrW(25353) & ChrW(29031) & ChrW(32) & ChrW(20020) & ChrW(26102) & ChrW(30028) & ChrW(-26782) & ChrW(-30616)
+    DoCmd.OpenQuery stDocName, acNormal, acEdit
+Refresh
+Exit_Command139_Click:
+    Exit Sub
+
+Err_Command139_Click:
+    MsgBox Err.Description
+    Resume Exit_Command139_Click
+    
+End Sub
+
+Private Sub 临时界面表_子窗体_Enter()
+DoCmd.OpenQuery "临时界面表追加查询"
+Refresh
+End Sub
+
+Private Sub 临时界面表_子窗体_Exit(Cancel As Integer)
+DoCmd.OpenQuery "临时界面表删除查询"
+Refresh
+End Sub
+
+Private Sub 月底对账_Click()
+mOpen = Shell("Explorer.exe D:\工作中心\对账分组.mdb", vbNormalFocus)
+End Sub
+
+Private Sub 月度实绩_Click()
+mOpen = Shell("Explorer.exe D:\hazama\工具\实绩计算器 - 新系统对应.mdb", vbNormalFocus)
+End Sub
+Private Sub Command156_Click()
+On Error GoTo Err_Command156_Click
+
+    Dim stDocName As String
+
+    stDocName = ChrW(24050) & ChrW(20570) & ChrW(21333) & ChrW(26410) & ChrW(21457) & ChrW(21333)
+    DoCmd.OpenQuery stDocName, acNormal, acEdit
+
+Exit_Command156_Click:
+    Exit Sub
+
+Err_Command156_Click:
+    MsgBox Err.Description
+    Resume Exit_Command156_Click
+    
+End Sub
+
+Sub test(ByVal inputpatch As String)
+    'Dim inputpatch, outputpatch As String
+    Dim imo
+
+    'inputpatch = "d:\jpg\Page0002.jpg"
+    outputpatch = Replace(inputpatch, "Page", "show")
+    Set imo = CreateObject("ImageMagickObject.MagickImage.1")
+    
+    imo.Convert "-crop", "871x112+580+750", inputpatch, outputpatch
+    imo.Convert "-resize", "200%", outputpatch, outputpatch
+    
+    
+    
+    
+    Dim txt As String
+    If Dir("d:\2990.txt") <> "" Then
+    Kill "d:\2990.txt"
+    End If
+    'Shell "cmd /c cd /d C:\Program Files (x86)\Tesseract-OCR && Tesseract " & "d:\jpg\Page0001提取.jpg" & " d:2990"
+    Shell "cmd /c cd /d C:\Program Files\Tesseract-OCR && Tesseract " & outputpatch & " d:2990" & " -l eng -psm7" 'digits"
+    
+    Do Until Dir("d:\2990.txt") <> ""
+    DoEvents
+    Loop
+    ax = Null
+        Open "D:\2990.txt" For Input As #1 '
+        Do While Not EOF(1)
+        Line Input #1, txt
+        ax = txt
+        Loop
+        Close #1
+       
+    Do Until Not IsNull(ax)
+        Open "D:\2990.txt" For Input As #1 '
+        Do While Not EOF(1)
+        Line Input #1, txt
+        ax = txt
+        Loop
+        Close #1
+    Loop
+    newname = Left(ax, Len(ax) - InStr(1, "DD", ax) - 1) & ".jpg"
+    newname = Replace(newname, Chr(34), "")
+    newname = Replace(newname, Chr(10), "")
+    newname = Replace(newname, Chr(9), "")
+    newname = Replace(newname, Chr(13), "")
+    newname = Replace(newname, "l", "1")
+    newname = Replace(newname, "O", "0")
+    newname = Replace(newname, Chr(47), "")
+    newname = Replace(newname, Chr(92), "")
+    newname = Replace(newname, Chr(42), "")
+    newname = Replace(newname, Chr(39), "")
+
+    'MsgBox newname
+    newname = "DD" & Right(newname, Len(newname) - 2)
+    newname = Replace(newname, "DDDD", "DD")
+    ordercode = Replace(newname, ".jpg", "")
+    newname = "d:\订单\" & newname
+    'MsgBox newname
+    i = 1
+    Do Until Dir(newname) = Empty
+        'MsgBox InStr(1, newname, "-")
+        If InStr(1, newname, "-") <> 0 Then
+        newname = Replace(newname, "-" & (i - 1) & ".jpg", "-" & i & ".jpg")
+        Else
+        newname = Replace(newname, ".jpg", "-1.jpg")
+        'MsgBox newname
+        End If
+    i = i + 1
+    Loop
+    
+orderDD = Mid(ordercode, 1, 2) = "DD"
+
+orderyear = CInt(Mid(ordercode, 3, 4)) = CInt(Year(Date)) Or CInt(Mid(ordercode, 3, 4)) = CInt(Year(Date) - 1)
+
+ordermonth = (CInt(Mid(ordercode, 7, 2)) < 13) And (CInt(Mid(ordercode, 7, 2)) > 0)
+orderday = (CInt(Mid(ordercode, 9, 2)) < 32) And (CInt(Mid(ordercode, 9, 2)) > 0)
+orderlen = Len(ordercode) = 15
+
+ordercodeerror = orderDD And orderyear And ordermonth And orderday And orderlen
+
+
+    If ordercodeerror Then
+    Name inputpatch As newname
+    Else
+    newname = "D:\订单\" & "重命名错误" & Hour(Now) & Minute(Now) & Second(Now) & ".jpg"
+    Name inputpatch As newname
+    End If
+    imo.Convert "-quality", "50", newname, newname
+    Kill outputpatch
+    Set imo = Nothing
+    End Sub
+
